@@ -14,6 +14,7 @@ import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
+import org.springframework.security.access.AccessDeniedException;
 
 import java.util.List;
 
@@ -166,6 +167,19 @@ public class ApiExceptionHandler {
             message = "token is invalid or expired";
         }
         return respond(HttpStatus.UNAUTHORIZED, message, request, List.of());
+    }
+    @ExceptionHandler(ForbiddenException.class)
+    public ResponseEntity<ApiError> forbidden(
+            ForbiddenException e,
+            HttpServletRequest request) {
+        return respond(HttpStatus.FORBIDDEN, e.getMessage(), request, List.of());
+    }
+
+    @ExceptionHandler(AccessDeniedException.class)
+    public ResponseEntity<ApiError> accessDenied(
+            AccessDeniedException e,
+            HttpServletRequest request) {
+        return respond(HttpStatus.FORBIDDEN, "admin role required", request, List.of());
     }
 
     private ResponseEntity<ApiError> respond(

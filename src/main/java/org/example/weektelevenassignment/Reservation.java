@@ -41,4 +41,8 @@ public class Reservation {
     public AppUser getOwner() { return owner; }
     public LocalDateTime getStartTime() { return startTime; }
     public LocalDateTime getEndTime() { return endTime; }
+    public void reschedule(LocalDateTime startTime, LocalDateTime endTime) {
+        this.startTime = startTime;
+        this.endTime = endTime;
+    }
 }

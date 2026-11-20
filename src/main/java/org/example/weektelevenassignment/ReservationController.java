@@ -59,6 +59,13 @@ public class ReservationController {
     public void delete(@PathVariable Long id, Authentication authentication) {
         reservationService.delete(id, authentication.getName(), isAdmin(authentication));
     }
+    @PutMapping("/reservations/{id}")
+    public ReservationResponse update(@PathVariable Long id,
+                                      @Valid @RequestBody ReservationCreateRequest request,
+                                      Authentication authentication) {
+        return ReservationResponse.from(reservationService.update(
+                id, authentication.getName(), request.startTime(), request.endTime()));
+    }
 
     private static boolean isAdmin(Authentication authentication) {
         return authentication.getAuthorities().stream()

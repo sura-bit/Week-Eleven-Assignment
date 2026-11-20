@@ -63,6 +63,21 @@ public class ReservationService {
         requireOwnerOrAdmin(r, username, admin);
         reservationRepository.delete(r);
     }
+    @Transactional
+    public Reservation update(Long id, String username,
+                              LocalDateTime startTime, LocalDateTime endTime) {
+        checkTimes(startTime, endTime);                                    // 400
+        Reservation r = find(id);                                          // 404
+        if (!r.isOwnedBy(username)) {                                      // 403
+            throw new ForbiddenException("reservation " + id + " belongs to another user");
+        }
+        Long roomId = r.getRoom().getId();
+        if (reservationRepository.countOverlappingExcept(roomId, id, startTime, endTime) > 0) {
+            throw new ConflictException("room " + roomId + " is already booked at that time");  // 409
+        }
+        r.reschedule(startTime, endTime);
+        return r;
+    }
 
     private Reservation find(Long id) {
         return reservationRepository.findById(id)

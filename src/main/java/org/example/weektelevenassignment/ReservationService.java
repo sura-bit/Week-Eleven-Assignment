@@ -1,93 +1,83 @@
 package org.example.weektelevenassignment;
 
+
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
 import java.util.List;
-import java.util.Optional;
 
 @Service
 public class ReservationService {
 
     private final RoomRepository roomRepository;
     private final ReservationRepository reservationRepository;
+    private final AppUserRepository userRepository;
 
     public ReservationService(RoomRepository roomRepository,
-                              ReservationRepository reservationRepository) {
+                              ReservationRepository reservationRepository,
+                              AppUserRepository userRepository) {
         this.roomRepository = roomRepository;
         this.reservationRepository = reservationRepository;
+        this.userRepository = userRepository;
     }
 
-    // empty = no such room (404)
     public List<Reservation> findByRoom(Long roomId) {
         if (!roomRepository.existsById(roomId)) {
             throw new NotFoundException("room " + roomId + " not found");
         }
-
         return reservationRepository.findByRoomIdOrderByStartTime(roomId);
     }
 
+    // The owner comes from the login, never from the request
     @Transactional
-    public Reservation create(
-            Long roomId,
-            String reservedBy,
-            LocalDateTime startTime,
-            LocalDateTime endTime) {
-
-        if (!startTime.isBefore(endTime)) {
-            throw new IllegalArgumentException(
-                    "startTime must be before endTime");
-        }
-
+    public Reservation create(Long roomId, String username,
+                              LocalDateTime startTime, LocalDateTime endTime) {
+        checkTimes(startTime, endTime);                                         // 400
         Room room = roomRepository.findById(roomId)
-                .orElseThrow(() ->
-                        new NotFoundException("room " + roomId + " not found"));
-
-        if (reservationRepository.countOverlapping(
-                roomId, startTime, endTime) > 0) {
-
-            throw new ConflictException(
-                    "room " + roomId + " is already booked at that time");
+                .orElseThrow(() -> new NotFoundException("room " + roomId + " not found"));  // 404
+        if (reservationRepository.countOverlapping(roomId, startTime, endTime) > 0) {
+            throw new ConflictException("room " + roomId + " is already booked at that time");  // 409
         }
-
-        return reservationRepository.save(
-                new Reservation(room, reservedBy, startTime, endTime));
+        AppUser owner = userRepository.findByUsername(username)
+                .orElseThrow(() -> new NotFoundException("user " + username + " not found"));
+        return reservationRepository.save(new Reservation(room, owner, startTime, endTime));
     }
 
-    private void checkRequest(String reservedBy, LocalDateTime startTime, LocalDateTime endTime) {
-        if (reservedBy == null || reservedBy.isBlank()) {
-            throw new IllegalArgumentException("reservedBy is required");
+    public List<Reservation> findMine(String username) {
+        return reservationRepository.findMine(username);
+    }
+
+    // Read one: the owner or an admin
+    @Transactional(readOnly = true)
+    public Reservation get(Long id, String username, boolean admin) {
+        Reservation r = find(id);                     // 404 first
+        requireOwnerOrAdmin(r, username, admin);      // then 403
+        return r;
+    }
+
+    // Cancel: the owner or an admin
+    @Transactional
+    public void delete(Long id, String username, boolean admin) {
+        Reservation r = find(id);
+        requireOwnerOrAdmin(r, username, admin);
+        reservationRepository.delete(r);
+    }
+
+    private Reservation find(Long id) {
+        return reservationRepository.findById(id)
+                .orElseThrow(() -> new NotFoundException("reservation " + id + " not found"));
+    }
+
+    private void requireOwnerOrAdmin(Reservation r, String username, boolean admin) {
+        if (!admin && !r.isOwnedBy(username)) {
+            throw new ForbiddenException("reservation " + r.getId() + " belongs to another user");
         }
-        if (startTime == null || endTime == null) {
-            throw new IllegalArgumentException("startTime and endTime are required");
-        }
+    }
+
+    private void checkTimes(LocalDateTime startTime, LocalDateTime endTime) {
         if (!startTime.isBefore(endTime)) {
             throw new IllegalArgumentException("startTime must be before endTime");
         }
-    }
-
-    public List<Reservation> findByReservedBy(String name) {
-        return reservationRepository.findByReservedByWithRoom(name);
-    }
-
-    public Optional<Reservation> findById(Long id) {
-        return reservationRepository.findById(id);
-    }
-
-    public Reservation get(Long id) {
-        return reservationRepository.findById(id)
-                .orElseThrow(() ->
-                        new NotFoundException(
-                                "reservation " + id + " not found"));
-    }
-
-    public void delete(Long id) {
-        if (!reservationRepository.existsById(id)) {
-            throw new NotFoundException(
-                    "reservation " + id + " not found");
-        }
-
-        reservationRepository.deleteById(id);
     }
 }

@@ -13,14 +13,14 @@ public interface ReservationRepository extends JpaRepository<Reservation, Long> 
 
     boolean existsByRoomId(Long roomId);
 
-    List<Reservation> findByReservedByOrderByStartTime(String reservedBy);
     @Query("""
         select r from Reservation r
         join fetch r.room
-        where r.reservedBy = :name
+        join fetch r.owner o
+        where o.username = :username
         order by r.startTime
-        """)
-    List<Reservation> findByReservedByWithRoom(@Param("name") String name);
+    """)
+    List<Reservation> findMine(@Param("username") String username);
 
     @Query("""
         select count(r) from Reservation r

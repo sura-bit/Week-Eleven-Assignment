@@ -45,6 +45,9 @@ public class SecurityConfig {
                         .requestMatchers(HttpMethod.GET, "/api/auth/me").authenticated()
                         .requestMatchers(HttpMethod.GET, "/api/reservations/**").authenticated()
                         .requestMatchers(HttpMethod.GET, "/api/**").permitAll()
+                        .requestMatchers(HttpMethod.POST,   "/api/rooms").hasRole("ADMIN")
+                        .requestMatchers(HttpMethod.PUT,    "/api/rooms/*").hasRole("ADMIN")
+                        .requestMatchers(HttpMethod.DELETE, "/api/rooms/*").hasRole("ADMIN")
                         .anyRequest().authenticated())
                 .httpBasic(b -> b.authenticationEntryPoint(entryPoint))
                 .oauth2ResourceServer(o -> o

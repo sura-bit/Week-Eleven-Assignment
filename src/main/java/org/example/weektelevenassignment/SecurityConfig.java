@@ -16,6 +16,8 @@ import org.springframework.security.oauth2.jwt.JwtEncoder;
 import org.springframework.security.oauth2.jwt.NimbusJwtDecoder;
 import org.springframework.security.oauth2.jwt.NimbusJwtEncoder;
 import org.springframework.security.web.SecurityFilterChain;
+import org.springframework.security.oauth2.server.resource.authentication.JwtAuthenticationConverter;
+import org.springframework.security.oauth2.server.resource.authentication.JwtGrantedAuthoritiesConverter;
 
 import javax.crypto.SecretKey;
 import javax.crypto.spec.SecretKeySpec;
@@ -46,7 +48,7 @@ public class SecurityConfig {
                 .httpBasic(b -> b.authenticationEntryPoint(entryPoint))
                 .oauth2ResourceServer(o -> o
                         .authenticationEntryPoint(entryPoint)
-                        .jwt(Customizer.withDefaults()))
+                        .jwt(jwt -> jwt.jwtAuthenticationConverter(jwtAuthenticationConverter())))
                 .exceptionHandling(e -> e.authenticationEntryPoint(entryPoint));
         return http.build();
     }
@@ -65,5 +67,15 @@ public class SecurityConfig {
     public JwtDecoder jwtDecoder(SecretKey jwtKey) {
         return NimbusJwtDecoder.withSecretKey(jwtKey)
                 .macAlgorithm(MacAlgorithm.HS256).build();
+    }
+    @Bean
+    public JwtAuthenticationConverter jwtAuthenticationConverter() {
+        JwtGrantedAuthoritiesConverter roles = new JwtGrantedAuthoritiesConverter();
+        roles.setAuthoritiesClaimName("role");
+        roles.setAuthorityPrefix("ROLE_");
+
+        JwtAuthenticationConverter converter = new JwtAuthenticationConverter();
+        converter.setJwtGrantedAuthoritiesConverter(roles);
+        return converter;
     }
 }
